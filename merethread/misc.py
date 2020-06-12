@@ -17,7 +17,7 @@ class Runtime:
 
     def __init__(self, clock=None):
         if clock is None:
-            clock = datetime.datetime
+            clock = datetime.datetime.now
         self.clock = clock
         self.start = None
         self.end = None
@@ -57,7 +57,7 @@ class Runtime:
             return dt.total_seconds()
 
     def now(self):
-        return self.clock.now()
+        return self.clock()
 
     def __repr__(self):
         return '<%s %s>' % (self.__class__.__name__, self)

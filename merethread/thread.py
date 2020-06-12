@@ -2,10 +2,11 @@
 Definitions of *merethread* ``Thread`` baseclass.
 """
 
-import logging
+import datetime
 from enum import Enum
 import threading as threading
 from concurrent.futures import Future
+import lo99ing
 
 from .misc import Runtime, ProfileContext, NoopContext, get_currnet_stacktrace
 
@@ -129,7 +130,7 @@ class Thread(threading.Thread):
     # constructor
 
     def __init__(self, *,
-                 logger=None,
+                 logger=None, logger_name=None, clock=None,
                  profile=False, profile_kwargs=None,
                  **kwargs):
         """
@@ -140,8 +141,13 @@ class Thread(threading.Thread):
         super().__init__(**kwargs)
 
         if logger is None:
-            logger = logging.getLogger('%s' % self.name)
+            if logger_name is None:
+                logger_name = '%s' % self.name
+            logger = lo99ing.get_logger(logger_name)
         self.logger = logger
+        if clock is None:
+            clock = datetime.datetime.now
+        self._clock = clock
 
         self._stopping_event = threading.Event()
         self._stop_reason = None
@@ -153,7 +159,7 @@ class Thread(threading.Thread):
         # The following are private. subclasses should not set them:
         self.__result = None
         self.__exception = None
-        self.__runtime = self.Runtime()
+        self.__runtime = self.Runtime(clock=self._clock)
         self.__future = self.Future(self)
 
     ################################################################################
@@ -235,7 +241,7 @@ class Thread(threading.Thread):
 
         Can be called from any thread.
         """
-        self.logger.info('%sstop requested (%s)', self._log_prefix, reason)
+        self.logger.info('stop requested (%s)', reason)
         self._stop_reason = reason
         self._stopping_event.set()
 
@@ -311,7 +317,7 @@ class Thread(threading.Thread):
 
         If an exception is raised, the thread will abort with that exception.
         """
-        self.logger.info('%sstarting', self._log_prefix)
+        self.logger.info('starting')
 
     def _on_exit(self):
         """
@@ -320,7 +326,7 @@ class Thread(threading.Thread):
         Called regardless of whether the thread finished successfully or aborted due to
         an error.
         """
-        self.logger.info('%sdone', self._log_prefix)
+        self.logger.info('done')
 
     def _on_abort(self, e):
         """
@@ -340,7 +346,7 @@ class Thread(threading.Thread):
         If an exception is raised, the thread will abort with that exception.
         Else, the thread will exit cleanly.
         """
-        self.logger.info('%sstopping', self._log_prefix)
+        self.logger.info('stopping')
 
     def _handle_stop_before_start(self):
         """
@@ -352,7 +358,7 @@ class Thread(threading.Thread):
         If an exception is raised, the thread will abort with that exception.
         Else, the thread will exit cleanly.
         """
-        self.logger.info('%snot starting, stop already requested', self._log_prefix)
+        self.logger.info('not starting, stop already requested')
 
     ################################################################################
     # profiling, debugging, introspection
@@ -441,9 +447,8 @@ class Thread(threading.Thread):
         super().join(timeout)
         return not self.is_alive()
 
-    @property
-    def _log_prefix(self):
-        return '%s: ' % self.name
+    def _now(self):
+        return self._clock()
 
     def __repr__(self):
         assert self._initialized, "Thread.__init__() was not called"

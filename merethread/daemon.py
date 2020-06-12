@@ -79,10 +79,10 @@ class DaemonThread(Thread):
 
         If an exception is raised from this method, the thread will abort.
         """
-        self.logger.exception('%s error', self._log_prefix, exc_info=e)
+        self.logger.exception('error', exc_info=e)
 
     def _on_abort(self, e):
-        self.logger.exception('%saborted due to an error', self._log_prefix, exc_info=e)
+        self.logger.exception('aborted due to an error', exc_info=e)
 
     def _on_exit(self):
         # A daemon should only exit if requested
@@ -107,9 +107,9 @@ class DaemonThread(Thread):
         if self._stop_reason is None:
             self._stop_reason = 'premature'
         if self.exception is not None:
-            self.logger.error('%sexiting prematurely due to an error', self._log_prefix)
+            self.logger.error('exiting prematurely due to an error')
         else:
-            self.logger.error('%sexiting prematurely', self._log_prefix)
+            self.logger.error('exiting prematurely')
 
     def _main_init(self):
         pass
@@ -178,7 +178,7 @@ class EventLoopThread(DaemonThread):
 
         If this method raises an exception, ``_on_error`` is called to handle it.
         """
-        self.logger.exception('%serror handling event: %s', self._log_prefix, event, exc_info=e)
+        self.logger.exception('error handling event: %s', event, exc_info=e)
 
     ################################################################################
     # abstract event loop implementation (private)
