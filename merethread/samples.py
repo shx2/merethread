@@ -7,7 +7,7 @@ Some of these are also used for unittesting.
 import time
 from .thread import Thread
 from .daemon import DaemonThread, EventLoopThread
-from .task import TaskThread, FunctionThread
+from .task import TaskThread, FunctionThread, ExpiringTaskThread
 
 
 ################################################################################
@@ -202,6 +202,34 @@ def idle_function_thread(*args, **kwargs):
 def failed_function_thread():
     """ Same as `FailedTaskThread`_, but implemeted using a `FunctionThread`_ """
     return FunctionThread(_fail)
+
+
+################################################################################
+# ExpiringTaskThread samples
+
+class NoopExpiringTaskThread(ExpiringTaskThread):
+    """ A task which returns immediately """
+
+    RESULT = SAMPLE_RESULT
+
+    def _main(self):
+        return self.RESULT
+
+
+class IdleExpiringTaskThread(ExpiringTaskThread):
+    """ A task which sleeps until expired """
+
+    def _main(self):
+        self._sleep(9999999999)
+
+
+class FailedExpiringTaskThread(ExpiringTaskThread):
+    """ A task which raises an exception immediately """
+
+    EXCEPTION_TYPE = type(SAMPLE_EXCEPTION)
+
+    def _main(self):
+        _fail()
 
 
 ################################################################################

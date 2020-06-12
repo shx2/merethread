@@ -44,10 +44,10 @@ Features
 - Debugging and profiling threads
 
     - Easily profile a thread.
-    
+
         - Enable profiling on the thread by passing ``profile=True``.
         - Access profiler data and stats using the ``Thread.profiler`` attribute.
-    
+
     - Easily view the current (live) stack-trace of the thread, using the
       ``Thread.get_current_stacktrace()`` method.
 
@@ -69,7 +69,7 @@ listed above.
 These are:
 
 - ``DaemonThread``: A thread which is meant to run for as long as the process is alive.
-    
+
     - Can be signaled to stop (cleanly) by calling its ``DaemonThread.stop()`` method.
     - Exiting prematurely is considered an error, and an appropriate error handler is called, so
       they don't disappear silently.
@@ -85,9 +85,11 @@ These are:
 
     - Can be cancelled (cleanly) by calling its ``TaskThread.cancel()`` method.
 
+- ``ExpiringTaskThread``: A thread which is meant to run for a predefined duration and exit.
+
 - ``FunctionThread``: A specialized ``TaskThread`` which runs a caller-provided ``target`` function
   (similar to the standard ``Thread`` ``target`` arguemnt).
-    
+
     - This class is provided for convenience.  It is not a well-behaved thread.
     - Cancelling a ``FunctionThread`` can only be done before it starts running.
     - You should prefer subclassing ``TaskThread`` instead of using a ``FunctionThread`` when

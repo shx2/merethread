@@ -196,7 +196,7 @@ class Thread(threading.Thread):
             except _ThreadStop as e:
                 # stop has been requested
                 try:
-                    self._on_thread_stop(e)  # may raise or not
+                    result = self._on_thread_stop(e)  # may raise or not
                 except Exception as e2:
                     exception = e2
 
@@ -251,7 +251,7 @@ class Thread(threading.Thread):
         """
         self._sleep(0)
 
-    def _sleep(self, timeout=None):
+    def _sleep(self, timeout):
         """
         Sleep for ``timeout`` seconds, or until ``_request_stop`` is called.
 
@@ -344,7 +344,7 @@ class Thread(threading.Thread):
         A hook which controls what to do when the thread detects it has been requested to stop.
 
         If an exception is raised, the thread will abort with that exception.
-        Else, the thread will exit cleanly.
+        Else, the thread will exit cleanly, and result will be set to the value returned.
         """
         self.logger.info('stopping')
 

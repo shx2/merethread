@@ -3,6 +3,7 @@ Definitions of task-thread types: temporary threads which are meant
 to perform a single task.
 """
 
+import datetime
 from concurrent.futures import CancelledError
 from .thread import Thread, ThreadStatus, _ThreadStop
 
@@ -68,6 +69,97 @@ class TaskThread(Thread):
         if status == str(self._stop_reason):
             return status
         return super()._status_repr()
+
+
+class ExpiringTaskThread(TaskThread):
+    """
+    A thread to run a task with a predefined expiry.
+    When expires, the thread exits gracefully.
+
+    ``expiry`` can be:
+
+     - int/float: number of seconds since thread is started
+     - datetime.timedelta: time since thread is started
+     - datetime.datetime: absolute expiration time
+
+    """
+
+    class _Expired(_ThreadStop):
+        """ An internal error raised to signal it has expired and should stop executing. """
+        pass
+
+    def __init__(self, *, expiry, **kwargs):
+        super().__init__(**kwargs)
+
+        self._expiry_raw = expiry
+        self._expiry = None
+        self._expired = False
+
+        # If we got an invalid expiry, report it early:
+        self._calc_expiry(self._expiry_raw)
+
+    def _on_enter(self):
+        # setting expiry when starting
+
+        super()._on_enter()
+        # set expiry:
+        self._expiry = self._calc_expiry(self._expiry_raw)
+        # check if already expired:
+        self._check_expiry()
+
+    def _sleep(self, timeout):
+        # enforcing expiry when sleeping
+
+        # check if already expired:
+        self._check_expiry()
+        # modify timeout so we don't sleep beyond expiry:
+        expire_after_sleep = False
+        max_timeout = (self._expiry - self._now()).total_seconds()
+        if timeout > max_timeout:
+            timeout = max(0, max_timeout)
+            expire_after_sleep = True
+        # sleep:
+        super()._sleep(timeout)
+        # check if expired after sleeping:
+        if expire_after_sleep:
+            raise self._Expired()
+        self._check_expiry()  # just in case
+
+    def _on_thread_stop(self, e):
+        # handle exit-on-expiry
+
+        if isinstance(e, self._Expired):
+            # expired -- not an error condition, so suppress error
+            self._expired = True
+            return self._on_expiry()
+        return super()._on_thread_stop(e)
+
+    def _check_expiry(self):
+        if self._now() >= self._expiry:
+            raise self._Expired()
+
+    def _calc_expiry(self, expiry_raw):
+        if isinstance(expiry_raw, datetime.datetime):
+            # this is already the expiration time
+            return expiry_raw
+        elif isinstance(expiry_raw, datetime.timedelta):
+            # delta relative to now
+            return self._now() + expiry_raw
+        elif isinstance(expiry_raw, (int, float)):
+            # number of seconds, relative to now
+            return self._now() + datetime.timedelta(seconds=expiry_raw)
+        else:
+            raise TypeError('Invalid expiry: %r' % expiry_raw)
+
+    def is_expired(self):
+        return self._expired
+
+    def _on_expiry(self):
+        """
+        A hook which controls what to do when the thread expires.
+        The value returned will be used as task's result.
+        """
+        return None
 
 
 class FunctionThread(TaskThread):
