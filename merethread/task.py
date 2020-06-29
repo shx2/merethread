@@ -73,6 +73,17 @@ class TaskThread(Thread):
             return status
         return super()._status_repr()
 
+    def reraise(self, suppress_cancelled=False):
+        """
+        If the thread aborted with an error, raise it in this current (caller) thread.
+        :param suppress_cancelled: if thread aborted due to cancelling, will not raise.
+        """
+        try:
+            super().reraise()
+        except CancelledError:
+            if not suppress_cancelled:
+                raise
+
 
 class ExpiringTaskThread(TaskThread):
     """
