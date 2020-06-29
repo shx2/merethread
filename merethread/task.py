@@ -47,7 +47,10 @@ class TaskThread(Thread):
         return self.is_stopped() and self._stopping_event.is_set()
 
     def _on_abort(self, e):
-        self.logger.info('aborted due to an error: %s', e)
+        if isinstance(e, CancelledError):
+            self.logger.info('task cancelled')
+        else:
+            self.logger.info('aborted due to an error: %s', e)
 
     def _on_thread_stop(self, e):
         super()._on_thread_stop(e)
