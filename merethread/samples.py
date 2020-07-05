@@ -7,7 +7,7 @@ Some of these are also used for unittesting.
 import time
 from .thread import Thread
 from .daemon import DaemonThread, EventLoopThread
-from .task import TaskThread, FunctionThread, ExpiringTaskThread
+from .task import TaskThread, FunctionThread, LimitedTimeTaskThread, TimeoutTaskThread
 
 
 ################################################################################
@@ -207,7 +207,7 @@ def failed_function_thread():
 ################################################################################
 # ExpiringTaskThread samples
 
-class NoopExpiringTaskThread(ExpiringTaskThread):
+class NoopLimitedTimeTaskThread(LimitedTimeTaskThread):
     """ A task which returns immediately """
 
     RESULT = SAMPLE_RESULT
@@ -216,14 +216,39 @@ class NoopExpiringTaskThread(ExpiringTaskThread):
         return self.RESULT
 
 
-class IdleExpiringTaskThread(ExpiringTaskThread):
+class IdleLimitedTimeTaskThread(LimitedTimeTaskThread):
     """ A task which sleeps until expired """
 
     def _main(self):
         self._sleep(9999999999)
 
 
-class FailedExpiringTaskThread(ExpiringTaskThread):
+class FailedLimitedTimeTaskThread(LimitedTimeTaskThread):
+    """ A task which raises an exception immediately """
+
+    EXCEPTION_TYPE = type(SAMPLE_EXCEPTION)
+
+    def _main(self):
+        _fail()
+
+
+class NoopTimeoutTaskThread(TimeoutTaskThread):
+    """ A task which returns immediately """
+
+    RESULT = SAMPLE_RESULT
+
+    def _main(self):
+        return self.RESULT
+
+
+class IdleTimeoutTaskThread(TimeoutTaskThread):
+    """ A task which sleeps until expired """
+
+    def _main(self):
+        self._sleep(9999999999)
+
+
+class FailedTimeoutTaskThread(TimeoutTaskThread):
     """ A task which raises an exception immediately """
 
     EXCEPTION_TYPE = type(SAMPLE_EXCEPTION)

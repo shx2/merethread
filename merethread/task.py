@@ -85,9 +85,9 @@ class TaskThread(Thread):
                 raise
 
 
-class ExpiringTaskThread(TaskThread):
+class _ExpiringTaskThread(TaskThread):
     """
-    A thread to run a task with a predefined expiry.
+    An abstract thread to run a task with a predefined expiry.
     When expires, the thread exits gracefully.
 
     ``expiry`` can be:
@@ -173,8 +173,35 @@ class ExpiringTaskThread(TaskThread):
         A hook which controls what to do when the thread expires.
         The value returned will be used as task's result.
         """
+        raise NotImplementedError
+
+
+class LimitedTimeTaskThread(_ExpiringTaskThread):
+    """
+    A `TaskThread` which runs for a predefined period of time, and then finishes
+    successfully.
+    """
+
+    def _on_expiry(self):
+        # finish successfully upon expiry:
         return None
 
+
+class TimeoutTaskThread(_ExpiringTaskThread):
+    """
+    A `TaskThread` which runs for no longer than a given timeout.
+    When it times out, it aborts with `TimeoutError` exception.
+    """
+
+    def _on_expiry(self):
+        # abort with a TimeoutError upon expiry:
+        raise TimeoutError()
+
+    def is_timed_out(self):
+        return self.is_expired()
+
+
+################################################################################
 
 class FunctionThread(TaskThread):
     """

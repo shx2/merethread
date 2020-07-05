@@ -8,7 +8,8 @@ from datetime import datetime, timedelta
 from .base import BaseThreadTest
 from merethread.samples import (
     NoopTaskThread, IdleTaskThread, FailedTaskThread,
-    NoopExpiringTaskThread, IdleExpiringTaskThread, FailedExpiringTaskThread,
+    NoopLimitedTimeTaskThread, IdleLimitedTimeTaskThread, FailedLimitedTimeTaskThread,
+    NoopTimeoutTaskThread, IdleTimeoutTaskThread, FailedTimeoutTaskThread,
     noop_function_thread, idle_function_thread, failed_function_thread,
     SAMPLE_RESULT, SAMPLE_EXCEPTION)
 
@@ -23,19 +24,23 @@ class TaskThreadTest(BaseThreadTest):
     # FunctionThread is not cancellable after starting
     CANCELLABLE_THREADS = [
         (IdleTaskThread, {}),
-        (IdleExpiringTaskThread, {'expiry': EXPIRY}),
+        (IdleLimitedTimeTaskThread, {'expiry': EXPIRY}),
+        (IdleTimeoutTaskThread, {'expiry': EXPIRY}),
     ]
     LONG_THREADS = CANCELLABLE_THREADS + [
         (idle_function_thread, {}),
     ]
     SHORT_THREADS = [
         (NoopTaskThread, {}),
-        (NoopExpiringTaskThread, {'expiry': EXPIRY}),
+        (NoopLimitedTimeTaskThread, {'expiry': EXPIRY}),
+        (NoopTimeoutTaskThread, {'expiry': EXPIRY}),
         (noop_function_thread, {}),
         (FailedTaskThread, {}),
-        (FailedExpiringTaskThread, {'expiry': EXPIRY}),
+        (FailedLimitedTimeTaskThread, {'expiry': EXPIRY}),
+        (FailedTimeoutTaskThread, {'expiry': EXPIRY}),
         (failed_function_thread, {}),
     ]
+    IDLE_EXPIRY_THREADS = [IdleLimitedTimeTaskThread, IdleTimeoutTaskThread]
 
     ################################################################################
 
@@ -92,34 +97,43 @@ class TaskThreadTest(BaseThreadTest):
     # expiry tests
 
     def test_expires_absolute(self):
-        self._test_expires(datetime.now() + timedelta(seconds=self.EXPIRY))
+        for thread_cls in self.IDLE_EXPIRY_THREADS:
+            self._test_expires(thread_cls, datetime.now() + timedelta(seconds=self.EXPIRY))
 
     def test_expires_seconds(self):
-        self._test_expires(self.EXPIRY)
+        for thread_cls in self.IDLE_EXPIRY_THREADS:
+            self._test_expires(thread_cls, self.EXPIRY)
 
     def test_expires_timedetla(self):
-        self._test_expires(timedelta(seconds=self.EXPIRY))
+        for thread_cls in self.IDLE_EXPIRY_THREADS:
+            self._test_expires(thread_cls, timedelta(seconds=self.EXPIRY))
 
     def test_expires_immediate_absolute(self):
-        self._test_expires(datetime.now(), immediate=True)
+        for thread_cls in self.IDLE_EXPIRY_THREADS:
+            self._test_expires(thread_cls, datetime.now(), immediate=True)
 
     def test_expires_immediate_seconds(self):
-        self._test_expires(0, immediate=True)
+        for thread_cls in self.IDLE_EXPIRY_THREADS:
+            self._test_expires(thread_cls, 0, immediate=True)
 
     def test_expires_immediate_timedetla(self):
-        self._test_expires(timedelta(seconds=0), immediate=True)
+        for thread_cls in self.IDLE_EXPIRY_THREADS:
+            self._test_expires(thread_cls, timedelta(seconds=0), immediate=True)
 
     def test_expires_negative_absolute(self):
-        self._test_expires(datetime.now() - timedelta(seconds=100), immediate=True)
+        for thread_cls in self.IDLE_EXPIRY_THREADS:
+            self._test_expires(thread_cls, datetime.now() - timedelta(seconds=100), immediate=True)
 
     def test_expires_negative_seconds(self):
-        self._test_expires(-100, immediate=True)
+        for thread_cls in self.IDLE_EXPIRY_THREADS:
+            self._test_expires(thread_cls, -100, immediate=True)
 
     def test_expires_negative_timedetla(self):
-        self._test_expires(timedelta(seconds=-100), immediate=True)
+        for thread_cls in self.IDLE_EXPIRY_THREADS:
+            self._test_expires(thread_cls, timedelta(seconds=-100), immediate=True)
 
-    def _test_expires(self, expiry, immediate=False):
-        t = self.start_thread(self.create_thread(IdleExpiringTaskThread, expiry=expiry))
+    def _test_expires(self, thread_cls, expiry, immediate=False):
+        t = self.start_thread(self.create_thread(thread_cls, expiry=expiry))
         time.sleep(self.SHORT_DELAY)
         if not immediate:
             self.assert_running(t)
@@ -127,12 +141,13 @@ class TaskThreadTest(BaseThreadTest):
         self.assert_expired(t)
 
     def assert_expired(self, t):
-        self.assert_stopped_no_error(t)
         self.assertTrue(t.is_expired())
-
-    def assert_not_expired(self, t):
-        self.assert_stopped_no_error(t)
-        self.assertFalse(t.is_expired())
+        if isinstance(t, IdleTimeoutTaskThread):
+            # TimeoutError upon expiry
+            self.assert_aborted(t, TimeoutError)
+        else:
+            # no error upon expiry
+            self.assert_stopped_no_error(t)
 
     ################################################################################
 
