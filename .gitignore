@@ -1,6 +1,7 @@
 *.pyc
 __pycache__
 dist
+venv
 .tox
 *.egg-info/
 _bak/
